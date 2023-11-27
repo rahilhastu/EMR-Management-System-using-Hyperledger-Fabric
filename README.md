@@ -6,6 +6,8 @@ Our project is a big step forward because it integrates the cutting-edge idea of
 
 This repository contains scripts and configurations to set up a Hyperledger Fabric network and deploy a chaincode.
 
+Youtube Link: https://youtu.be/yr27sgh6sK8
+
 ## Setup
 
 1. **Clone the repository:**
@@ -42,3 +44,10 @@ This repository contains scripts and configurations to set up a Hyperledger Fabr
    node registerUser.js
    node app.js
    ```
+
+6. **To view Frontend**
+
+```
+    cd ../frontend-combined
+    Run adminApplication.html
+```
