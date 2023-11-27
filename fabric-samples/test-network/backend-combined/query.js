@@ -166,7 +166,7 @@ async function patient_grantViewAccess(userEmail, viewerEmail, emrID) {
     const contract = network.getContract("emr");
 
     const result = await contract.submitTransaction(
-      "grantViewAccess",
+      "grantUserViewPermission",
       userEmail,
       viewerEmail,
       emrID
@@ -197,7 +197,7 @@ async function patient_revokeViewAccess(userEmail, viewerEmail, emrID) {
     const contract = network.getContract("emr");
 
     const result = await contract.submitTransaction(
-      "revokeViewAccess",
+      "revokeUserViewPermission",
       userEmail,
       viewerEmail,
       emrID
@@ -229,7 +229,7 @@ async function patient_grantAddAccess(userEmail, viewerEmail) {
     const contract = network.getContract("emr");
 
     const result = await contract.submitTransaction(
-      "grantAddAccess",
+      "grantUserAddPermission",
       userEmail,
       viewerEmail
     );
@@ -257,7 +257,7 @@ async function patient_revokeAddAccess(userEmail, viewerEmail) {
 
     const contract = network.getContract("emr");
     const result = await contract.submitTransaction(
-      "revokeAddAccess",
+      "revokeUserAddPermission",
       userEmail,
       viewerEmail
     );
@@ -287,7 +287,7 @@ async function admin_addEntityUser(name, email, type) {
     const contract = network.getContract("emr");
 
     const result = await contract.submitTransaction(
-      "addEntityUser",
+      "addNewUserRecord",
       name,
       email,
       type
@@ -321,7 +321,7 @@ async function viewAllEMR(email) {
     const contract = network.getContract("emr");
 
     // evaluate the specified transaction.
-    const result = await contract.submitTransaction("viewAllEMR", email);
+    const result = await contract.submitTransaction("getAllUserEMRRecord", email);
     console.log(
       `Transaction has been evaluated. Result is: ${result.toString()}`
     );

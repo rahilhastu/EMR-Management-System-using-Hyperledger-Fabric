@@ -2,10 +2,6 @@
 
 const { Contract } = require("fabric-contract-api");
 
-
-
-
-
 class User {
   constructor(name, email, userType, ownedEMRList, addedUserList) {
     this.name = name; 
@@ -246,44 +242,41 @@ class EMRContract extends Contract {
 
   async addEntityUser(ctx, name, email, type) {
     
-    let key = ctx.stub.createCompositeKey("User", [email]);
-    const userAsBytes = await ctx.stub.getState(key);
-    if (userAsBytes.length > 0) {
-      //refactor error message
-        
+    let userKey = ctx.stub.createCompositeKey("User", [email]);
+    const keyBytes = await ctx.stub.getState(userKey);
+    if (keyBytes.length > 0) {
            throw new Error(`User with ID: ${email} already exist`);
     }
   
     var ownedEMRList = new Array();
     var addedUserList = new Array();
-
     
     const user = new User(name, email, type, ownedEMRList, addedUserList);
    
-    await ctx.stub.putState(key, Buffer.from(JSON.stringify(user)));
-    return `User with ID: ${email} successfully added to system`;
+    await ctx.stub.putState(userKey, Buffer.from(JSON.stringify(user)));
+    return `User added with ID ${email} to hospital peers`;
   }
 
   async addEMR(ctx, userID, adder, ID, type, content) {    
-    let key = ctx.stub.createCompositeKey("User", [userID]);
-    const userAsBytes = await ctx.stub.getState(key);
+    let userKey = ctx.stub.createCompositeKey("User", [userID]);
+    const keyBytes = await ctx.stub.getState(userKey);
     
-    if (userAsBytes.length === 0) {
-      throw new Error(`User with ID: ${userID} doesn't exist`);
+    if (keyBytes.length === 0) {
+      throw new Error(` ${userID} : User ID not found`);
     }
 
     let adderKey = ctx.stub.createCompositeKey("User", [adder]);
     const adderAsBytes = await ctx.stub.getState(adderKey);
 
     if (adderAsBytes.length === 0) {
-      throw new Error(`User with ID: ${adder} doesn't exist`);
+      throw new Error(`${adder} : User ID not found `);
     }
     
-    const user = User.deserialize(JSON.parse(userAsBytes.toString()));
+    const user = User.deserialize(JSON.parse(keyBytes.toString()));
     
     if (user.checkPermissionForUser(adder) === false) {
       throw new Error(
-        `User with ID: ${adder} does not have permission to add for user: ${userID}`
+        ` User ${adder} don't have valid access to add for user: ${userID}`
       );
     }
     
@@ -292,7 +285,7 @@ class EMRContract extends Contract {
       const emrAsBytes = await ctx.stub.getState(emrKey);
       
       if (emrAsBytes.length > 0) {
-        throw new Error(`EMR with ID: ${ID}  already exist`);
+        throw new Error(` ${ID} : EMR ID already exist`);
       } else {
         
         user.ownedEMRList.push(ID);
@@ -323,9 +316,9 @@ class EMRContract extends Contract {
         
         await ctx.stub.putState(emrKey, Buffer.from(JSON.stringify(emr)));
         
-        await ctx.stub.putState(key, Buffer.from(JSON.stringify(user)));
+        await ctx.stub.putState(userKey, Buffer.from(JSON.stringify(user)));
         return `
-        EMR with ID: ${ID} successfully added with following info
+        Successfully added EMF with ID: ${ID} to user with ID: ${userID}
         recordOwner: ${userID}
         adder: ${adder}
         type: ${type}
@@ -337,20 +330,18 @@ class EMRContract extends Contract {
 
   async getEMR(ctx, emrID, email) {
     
-    const key = ctx.stub.createCompositeKey("EMR", [emrID]);
-    const emrAsBytes = await ctx.stub.getState(key);
+    const emrKey = ctx.stub.createCompositeKey("EMR", [emrID]);
+    const emrAsBytes = await ctx.stub.getState(emrKey);
     
     if (emrAsBytes.length === 0) {
-      throw new Error(`EMR with ID: ${emrID} does not exist`);
+      throw new Error(` ${ID} : EMR ID does not exist`);
     }
 
     let key2 = ctx.stub.createCompositeKey("User", [email]);
-    const userAsBytes = await ctx.stub.getState(key2);
+    const keyBytes = await ctx.stub.getState(key2);
     
-    if (userAsBytes.length === 0) {
-      console.info("Here is an error");
-      
-      throw new Error(`User with ID: ${email} doesn't exist`);
+    if (keyBytes.length === 0) {
+      throw new Error(`${adder} : User ID not found `);
     }
     
     const emr = EMR.deserialize(JSON.parse(emrAsBytes.toString()));
@@ -358,23 +349,23 @@ class EMRContract extends Contract {
       return emr.getContent();
     } else {
       throw new Error(
-        `User with ID ${email} doesn't have access permission to EMR with ID: ${emrID}`
+        ` ${email} User don't have view  permission to EMR record: ${emrID}`
       );
     }
   }
 
   
-  async viewAllEMR(ctx, userEmail) {
+  async getAllUserEMRRecord(ctx, userEmail) {
     
-    const key = ctx.stub.createCompositeKey("User", [userEmail]);
-    const userAsBytes = await ctx.stub.getState(key);
+    const userKey = ctx.stub.createCompositeKey("User", [userEmail]);
+    const keyBytes = await ctx.stub.getState(userKey);
     
-    if (userAsBytes.length === 0) {
-      throw new Error(`${key} does not exist`);
+    if (keyBytes.length === 0) {
+      throw new Error(`${userKey} : User ID not found `);
     }
 
     
-    const user = User.deserialize(JSON.parse(userAsBytes.toString()));
+    const user = User.deserialize(JSON.parse(keyBytes.toString()));
     const emrIDs = user.getOwns();
     
     if (emrIDs.length > 0) {
@@ -397,21 +388,21 @@ class EMRContract extends Contract {
       
       return emrs;
     } else {
-      throw new Error(`${key} does not own any EMR`);
+      throw new Error(`User: ${userKey} don't have any EMR`);
     }
   }
 
   
   async viewAllUsersWithAddAccess(ctx, userEmail) {
     
-    const key = ctx.stub.createCompositeKey("User", [userEmail]);
-    const userAsBytes = await ctx.stub.getState(key);
+    const userKey = ctx.stub.createCompositeKey("User", [userEmail]);
+    const keyBytes = await ctx.stub.getState(userKey);
     
-    if (userAsBytes.length === 0) {
-      throw new Error(`${key} does not exist`);
+    if (keyBytes.length === 0) {
+      throw new Error(`${userKey}: User ID not found`);
     }
 
-    const user = User.deserialize(JSON.parse(userAsBytes.toString()));
+    const user = User.deserialize(JSON.parse(keyBytes.toString()));
     const adderUserList = user.getaddedUserList();
 
     if (adderUserList.length > 0) {
@@ -430,25 +421,23 @@ class EMRContract extends Contract {
       }
       return resPermittedUserList;
     } else {
-      throw new Error(`${key} didn't grant access to any doctor`);
+      throw new Error(`${userKey} User didn't add access to any doctor to insert record`);
     }
   }
   
   async getGrantedUserForEMR(ctx, emrID, userEmail) {
-    const key = ctx.stub.createCompositeKey("EMR", [emrID]);
-    const emrAsBytes = await ctx.stub.getState(key);
+    const emrKey = ctx.stub.createCompositeKey("EMR", [emrID]);
+    const emrAsBytes = await ctx.stub.getState(emrKey);
     
     if (emrAsBytes.length === 0) {
-      throw new Error(`EMR with ID: ${emrID} does not exist`);
+      throw new Error(`${ID} : EMR ID does not exist`);
     }
 
     let key2 = ctx.stub.createCompositeKey("User", [userEmail]);
-    const userAsBytes = await ctx.stub.getState(key2);
+    const keyBytes = await ctx.stub.getState(key2);
     
-    if (userAsBytes.length === 0) {
-      console.info("Here is an error");
-      
-      throw new Error(`User with ID: ${email} doesn't exist`);
+    if (keyBytes.length === 0) {      
+      throw new Error(`${userKey}: User ID not found`);
     }
 
     const emr = EMR.deserialize(JSON.parse(emrAsBytes.toString()));
@@ -474,37 +463,37 @@ class EMRContract extends Contract {
         return resPermittedUserList;
       } else {
         throw new Error(
-          ` EMR ${emrID} doesn't have access permission any users.`
+          ` EMR ${emrID} doesn't have any  view access permission any users.`
         );
       }
     } else {
       throw new Error(
-        `User with ID: ${userEmail} doesn't own EMR with ID: ${emrID}`
+        `${userEmail} User doesn't own EMR record: ${emrID}`
       );
     }
   }
 
-  async grantViewAccess(ctx, userEmail, viewerEmail, emrID) {
+  async grantUserViewPermission(ctx, userEmail, viewerEmail, emrID) {
     
-    const key = ctx.stub.createCompositeKey("User", [userEmail]);
-    const userAsBytes = await ctx.stub.getState(key);
+    const userKey = ctx.stub.createCompositeKey("User", [userEmail]);
+    const keyBytes = await ctx.stub.getState(userKey);
     
-    if (userAsBytes.length === 0) {
-      throw new Error(`User with ID: ${userEmail} does not exist`);
+    if (keyBytes.length === 0) {
+      throw new Error(`${userEmail} : User ID not found`);
     }
 
     const key2 = ctx.stub.createCompositeKey("User", [viewerEmail]);
     const userAsBytes2 = await ctx.stub.getState(key2);
     
     if (userAsBytes2.length === 0) {
-      throw new Error(`User with ID: ${viewerEmail} does not exist`);
+      throw new Error(`${viewerEmail} : User ID not found`);
     }
     
     const emrKey = ctx.stub.createCompositeKey("EMR", [emrID]);
     const emrAsBytes = await ctx.stub.getState(emrKey);
 
     if (emrAsBytes.length === 0) {
-      throw new Error(`EMR with ID: ${emrID} does not exist`);
+      throw new Error(` ${emrID} : EMR ID does not exist`);
     }
     const emr = EMR.deserialize(JSON.parse(emrAsBytes.toString()));
     
@@ -512,38 +501,38 @@ class EMRContract extends Contract {
       if (emr.checkUserInPermittedList(viewerEmail) === false) {
         emr.permittedList.push(viewerEmail);
         await ctx.stub.putState(emrKey, Buffer.from(JSON.stringify(emr)));
-        return `User with ID: ${viewerEmail} has been successfully given view access of EMR with ID: ${emrID}`;
+        return `View access to the EMR with ID ${emrID} has been successfully granted to the user with ID ${viewerEmail}.`;
       } else {
-        return `User with ID: ${viewerEmail} already has view access`;
+        return `${viewerEmail} is already the user with view access.`;
       }
     } else {
       throw new Error(
-        `User with ID: ${userEmail} doesn't own EMR with ID: ${emrID}`
+        `The EMR with ID: ${emrID} is not owned by the user with ID: ${userEmail}.`
       );
     }
   }
 
-  async revokeViewAccess(ctx, userEmail, viewerEmail, emrID) {
+  async revokeUserViewPermission(ctx, userEmail, viewerEmail, emrID) {
     
-    const key = ctx.stub.createCompositeKey("User", [userEmail]);
-    const userAsBytes = await ctx.stub.getState(key);
+    const userKey = ctx.stub.createCompositeKey("User", [userEmail]);
+    const keyBytes = await ctx.stub.getState(userKey);
     
-    if (userAsBytes.length === 0) {
-      throw new Error(`User with ID: ${userEmail} does not exist`);
+    if (keyBytes.length === 0) {
+      throw new Error(` ${userEmail} : User ID not found`);
     }
 
     const key2 = ctx.stub.createCompositeKey("User", [viewerEmail]);
     const userAsBytes2 = await ctx.stub.getState(key2);
     
     if (userAsBytes2.length === 0) {
-      throw new Error(`User with ID: ${viewerEmail} does not exist`);
+      throw new Error(`${viewerEmail} : User ID not found`);
     }
     
     const emrKey = ctx.stub.createCompositeKey("EMR", [emrID]);
     const emrAsBytes = await ctx.stub.getState(emrKey);
 
     if (emrAsBytes.length === 0) {
-      throw new Error(`EMR with ID: ${emrID} does not exist`);
+      throw new Error(`EMR having ID: ${emrID} is not present.}`);
     }
     const emr = EMR.deserialize(JSON.parse(emrAsBytes.toString()));
     
@@ -552,64 +541,64 @@ class EMRContract extends Contract {
         let pos = emr.permittedList.indexOf(viewerEmail);
         emr.permittedList.splice(pos, 1);
         await ctx.stub.putState(emrKey, Buffer.from(JSON.stringify(emr)));
-        return ` View access of EMR with ID: ${emrID} has been successfully removed from user with ID: ${viewerEmail}`;
+        return `The user with ID: ${viewerEmail} has successfully had their view access to the EMR with ID: ${emrID} removed.`;
       } else {
-        return `User with ID: ${viewerEmail} doesn't have view access yet`;
+        return `The user ${viewerEmail} does not currently have view access.`;
       }
     } else {
       throw new Error(
-        `User with ID: ${userEmail} doesn't own EMR with ID: ${emrID}`
+        `The EMR with ID: ${emrID} is not owned by the user with ID: ${userEmail}.`
       );
     }
   }
 
-  async grantAddAccess(ctx, userEmail, adderEmail) {
+  async grantUserAddPermission(ctx, userEmail, adderEmail) {
     
-    const key = ctx.stub.createCompositeKey("User", [userEmail]);
-    const userAsBytes = await ctx.stub.getState(key);
+    const userKey = ctx.stub.createCompositeKey("User", [userEmail]);
+    const keyBytes = await ctx.stub.getState(userKey);
     const adderKey = ctx.stub.createCompositeKey("User", [adderEmail]);
     const adderAsBytes = await ctx.stub.getState(adderKey);
     
-    if (userAsBytes.length === 0) {
-      throw new Error(`$User with ID: ${userEmail} does not exist`);
+    if (keyBytes.length === 0) {
+      throw new Error(` ${userEmail} : User ID not found`);
     } else if (adderAsBytes.length === 0) {
-      throw new Error(`User with ID: ${adderEmail} does not exist`);
+      throw new Error(` ${adderEmail}: User ID not found`);
     } else {
-      let user = User.deserialize(JSON.parse(userAsBytes.toString()));
+      let user = User.deserialize(JSON.parse(keyBytes.toString()));
       
       if (user.checkPermissionForUser(adderEmail) === false) {
         user.addedUserList.push(adderEmail);
-        await ctx.stub.putState(key, Buffer.from(JSON.stringify(user)));
+        await ctx.stub.putState(userKey, Buffer.from(JSON.stringify(user)));
         
-        return `User with ID: ${adderEmail} successfully given permission to add EMR for user with ID: ${userEmail}`;
+        return `Permission to add EMR for user with ID: ${userEmail} has been successfully granted to user with ID: ${adderEmail}.`;
       } else {
-        return `User with ID: ${adderEmail} already in adder list`;
+        return `User already in adder list with ID: ${adderEmail}`;
       }
     }
   }
 
-  async revokeAddAccess(ctx, userEmail, adderEmail) {
+  async revokeUserAddPermission(ctx, userEmail, adderEmail) {
     
     const userKey = ctx.stub.createCompositeKey("User", [userEmail]);
-    const userAsBytes = await ctx.stub.getState(userKey);
+    const keyBytes = await ctx.stub.getState(userKey);
     
     const adderKey = ctx.stub.createCompositeKey("User", [adderEmail]);
     const adderAsBytes = await ctx.stub.getState(adderKey);
     
-    if (userAsBytes.length === 0) {
-      throw new Error(`$User with ID: ${userEmail} does not exist`);
+    if (keyBytes.length === 0) {
+      throw new Error(` ${userEmail} : User ID not found`);
     } else if (adderAsBytes.length === 0) {
-      throw new Error(`User with ID: ${adderEmail} does not exist`);
+      throw new Error(`${adderEmail}  : User ID not found`);
     } else {
-      const user = User.deserialize(JSON.parse(userAsBytes.toString()));
+      const user = User.deserialize(JSON.parse(keyBytes.toString()));
       
       if (user.checkPermissionForUser(adderEmail) === true) {
         let pos = user.addedUserList.indexOf(adderEmail);
         user.addedUserList.splice(pos, 1);
         await ctx.stub.putState(userKey, Buffer.from(JSON.stringify(user)));
-        return `Permission successfully removed from user with ID: ${adderEmail} to add EMR for user with ID: ${userEmail}`;
+        return `Permission to add an EMR for user with ID: ${userEmail} has been successfully removed.`;
       }
-      return `$User with ${adderEmail} is yet to be in adder list!`;
+      return `The user ${adderEmail} has not yet been added to the adder list!`;
     }
   }
 }
